@@ -5,7 +5,7 @@
 #  Created     : Tue Nov 17 21:26:12 2009 by Feather.et.ELF 
 #  Copyright   : Feather Workshop (c) 2009 
 #  Description : PaoPaoYu util funcs 
-#  Time-stamp: <2009-11-26 17:20:05 andelf> 
+#  Time-stamp: <2009-11-26 20:16:46 andelf> 
 
 import urllib2
 import urllib
@@ -50,9 +50,12 @@ def print_tank(t):
     print u"钓鱼%dBK/%d次" % (t['troll_price'], t['troll_times']) if t['can_be_trolled'] else "",
     print u"已被电" if t['is_shocked'] else u"未被电"
 
+def safe_decode(s):
+    return s.encode('gbk', 'ignore').decode('gbk')
+
 def print_userinfo(userinfo):
-    print u"昵称 %s, Id#%d, 图鉴等级 %d, 剩余鱼食 %d, 电鱼机会剩余 %d, 贝壳 %d, 珍珠 %d, 经验 %d/%d" % \
-          (userinfo['user_info']['nickname'],
+    print u"昵称 %s, Id#%d, 等级 %d, 剩余鱼食 %d, 电鱼机会 %d, 贝壳 %d, 珍珠 %d, 经验 %d/%d" % \
+          (safe_decode(userinfo['user_info']['nickname']),
            userinfo['user_info']['id'],
            userinfo['user_info']['almanac_level'],
            userinfo['user_info']['fish_food'],

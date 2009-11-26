@@ -5,7 +5,7 @@
 #  Created     : Sun Nov 15 21:02:04 2009 by Feather.et.ELF 
 #  Copyright   : Feather Workshop (c) 2009 
 #  Description : paopaoyu amf test 
-#  Time-stamp: <2009-11-26 17:57:55 andelf> 
+#  Time-stamp: <2009-11-26 20:17:34 andelf> 
 
 import socket
 socket.setdefaulttimeout(8)
@@ -22,12 +22,13 @@ import os
 import sys
 from utils import print_tank, print_fish, fish_str, print_tank_detail, \
      worth_shock, print_userinfo, pr, get_cookie, sleepbar, worth_feed, \
-     worth_delete, family_dict, __VERSION__
+     worth_delete, family_dict, safe_decode, __VERSION__
 
-
+CODEC = 'utf-8'
 if os.name== 'nt':
     reload(sys)
-    sys.setdefaultencoding('gb18030')   # codec fixed 
+    sys.setdefaultencoding('gb18030')   # codec fixed
+    CODEC = 'gb18030'
 
 print u"悲剧渔民 %s 版 By xxx" % __VERSION__
 
@@ -114,7 +115,7 @@ if (not main_level) or (main_level not in [2,3]):
 print u"= 好友信息 ="
 friends = req_safe(spacesService, "getFriendListAMF", uid) # or refreshFriendListAMF
 for f in friends.get('friend_list', []):
-    print u"%s 等级%d Id#%d" % (f['nickname'], f['almanac_level'], f['id'])
+    print u"%s 等级%d Id#%d" % (safe_decode(f['nickname']), f['almanac_level'], f['id'])
 print u"共 %d 好友" % len( friends.get('friend_list', []))
 
 # 收鱼部分 ########################################
@@ -266,8 +267,8 @@ def catch_fish():
         level = gameService.catchFishStartLevelAMF(uid, lv, main_level) if i== 1 \
                 else gameService.catchFishStartLevelAMF(uid, lv)
         if level['fish']:
-            print "此次可抓到:", fish_str( level['fish']['style'] )
-        wait(40+ i *4, "第%d关 " % i)
+            print u"此次可抓到:", fish_str( level['fish']['style'] )
+        wait(40+ i*4, u"第%d关 ".encode(CODEC) % i)
         js = gameService.catchFishCompleteLevelAMF(uid, lv, i%2== 1) # odd level you'll get fish
         if not js.get('js_script', False):
             print u"出错", js
@@ -280,7 +281,7 @@ def catch_fish():
         os.system('killall xv')         # for linux only
         res = gameService.catchFishGiveUpLevelAMF(uid, lv, code, captcha_code)
         if res and res.get('success', None):
-            print "成功捉鱼"
+            print u"成功捉鱼"
         else:
             print res
             res = None
