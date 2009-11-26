@@ -1,0 +1,11 @@
+杯具渔民
+
+0.0.1:
+	* basic function
+
+0.0.2:
+	* networking wrap with error check.
+	* can delete small fish
+	* feed friend
+	* add to git
+
