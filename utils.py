@@ -5,7 +5,7 @@
 #  Created     : Tue Nov 17 21:26:12 2009 by Feather.et.ELF 
 #  Copyright   : Feather Workshop (c) 2009 
 #  Description : PaoPaoYu util funcs 
-#  Time-stamp: <2009-11-26 20:16:46 andelf> 
+#  Time-stamp: <2009-11-28 14:23:04 andelf> 
 
 import urllib2
 import urllib
@@ -15,13 +15,16 @@ from progressbar import ProgressBar, Percentage, Bar, RotatingMarker, ETA
 import time
 
 
-__VERSION__ = '0.0.2'
+__VERSION__ = '0.0.3'
 
 pr = sys.stdout.write
 
 # 使用素数
 family_dict = {2:u'团团族', 3:u'迅风族', 5:u'三刀族', 7:u'豆花族', 11:u'巨角族', 13:u'暴米族', 30030:u'全族', \
-               17:u'X族'}
+               1:u'X族'}
+
+def now():
+    return int(time.time())
 
 def fish_str(s):
     _, kind, color, lv = s.split('_')
@@ -75,8 +78,6 @@ def print_tank_detail(td):
         print "="* 20
 
 def worth_shock(td):
-    if td['fish_tank']['is_shocked']:
-        return (False, False)
     bk = 0                              # how many you'll get
     need_feed = False
     for f in filter(lambda o:o['type']== u'f', td['objList']):
@@ -109,7 +110,7 @@ def worth_feed(td):
 def worth_delete(f):
     # {'status': u'NM', 'is_highest_level': False, 'strength': 5, 'star': 1, 'name': u'\u84dd\u70b9\u70b9\u9c7c\uff081\u7ea7\uff09 ', 'family': 11, 'level': 0, 'max_exp': 100, 'endurance': 5, 'max_life': 720, 'life': 719.34194444444449, 'hungry': 0, 'price': 0, 'agility': 3, 'style': u'f_dd_l1_1', 'fishtank_id': 0, 'exp': 0, 'can_be_potion': True, 'type': u'f', 'id': 190420645}
     cd = {'l':u'绿', 'l1':u'蓝', 'h':u'黄'}
-    return f['family']< 14 and f['hungry']== 0 and \
+    return f['family']> 1 and f['hungry']== 0 and f['star']== 1 and \
            (f['style'].split('_')[2] in cd) and f['exp']== 0 and f['style'].split('_')[3]== '1'
 
 def get_cookie(email, password):

@@ -5,7 +5,7 @@
 #  Created     : Sun Nov 15 21:02:04 2009 by Feather.et.ELF 
 #  Copyright   : Feather Workshop (c) 2009 
 #  Description : paopaoyu amf test 
-#  Time-stamp: <2009-11-26 20:17:34 andelf> 
+#  Time-stamp: <2009-11-28 15:58:37 andelf> 
 
 import socket
 socket.setdefaulttimeout(8)
@@ -22,7 +22,7 @@ import os
 import sys
 from utils import print_tank, print_fish, fish_str, print_tank_detail, \
      worth_shock, print_userinfo, pr, get_cookie, sleepbar, worth_feed, \
-     worth_delete, family_dict, safe_decode, __VERSION__
+     worth_delete, family_dict, safe_decode, now, __VERSION__
 
 CODEC = 'utf-8'
 if os.name== 'nt':
@@ -30,8 +30,9 @@ if os.name== 'nt':
     sys.setdefaultencoding('gb18030')   # codec fixed
     CODEC = 'gb18030'
 
-print u"悲剧渔民 %s 版 By xxx" % __VERSION__
+print u"杯具渔民 %s 版 By xxx" % __VERSION__
 
+            
 main_level = None
 username = 'username'
 password = 'password'
@@ -97,6 +98,49 @@ def wait(sec=70, txt=''):
     #     productsService.getMyFishTankListAMF(uid, uid) if int(time.time()) % 3== 2 else ()
     #     time.sleep(2.2)
 
+last_visit = 0
+time_line = dict()
+def do_time_line():
+    global time_line
+    events = filter(lambda k: k< now(), time_line.keys())
+    pr('[EVENT=%d]' % len(time_line)) if events else ()
+    for keys in events:
+        dowhat, parms = time_line[keys]
+        if dowhat== 'STEAL':
+            print "[STEAL]"
+            req = req_safe(gameService, "stealAMF", uid, *parms)
+            if res['fish']:
+                print_fish(res['fish'])
+            else:
+                print u"失败", rese
+        if dowhat== 'SHOCK':
+            tank = req_safe(productsService, "getMyFishTankObjectListAMF", uid, *parms) # f['id']. tk['id']
+            is_worth_shock, is_need_feed =  worth_shock(tank)
+            if is_worth_shock:
+                print u"[电鱼]:",
+                if is_need_feed:
+                    print u"(喂食2)",
+                    req_fail(productsService, "feedAMF", uid, *(parms+[2]))
+                    time.sleep(0.1)
+                while True:
+                    res = req_safe(productsService, "shockAMF", uid, *parms)
+                    if res.get('get_shells', 0):
+                        print u"获得", res['get_shells'], u"贝壳",
+                        time_line[now()+240*60] = ('SHOCK', parms)
+                        print "[EVENT Registered]"
+                    else:
+                        if res.get('remain_time', 1000)== 2:
+                            print ".",
+                            time.sleep(5)
+                            continue
+                        print u"失败", res
+                        time_line[now()+ res.get('remain_time', 240)*60 - 60] = ('SHOCK', parms)
+                        break
+        if dowhat== 'HARVEST':
+            pet_dispath()
+        del time_line[keys]
+
+
 newmsg = req_safe(spacesService, "getNewMsgAMF", uid, uid)
 userinfo = req_safe(membersService, "getUserInfoAMF", uid, uid)
 seainfo = req_safe(pubseaService, "getPubSeaInfoAMF", uid)
@@ -120,27 +164,31 @@ print u"共 %d 好友" % len( friends.get('friend_list', []))
 
 # 收鱼部分 ########################################
 print u"= 潜艇鱼 ="
-petst = req_safe(gameService, "getPetStatusAMF", uid, uid)
-if petst:
-    if petst['status']== u'c':
-        print u"抓鱼剩余时间 %d 秒." % (petst['rest_time'] or 0)
-    elif petst['status']== u'w':
-        print u"派遣抓鱼."
-        # petst = gameService.dispatchAMF(uid, 2) # 雌雄双煞
-        # petst = gameService.dispatchAMF(uid, 3) # 杜姆之巢
-        petst = req_safe(gameService, "dispatchAMF", uid, main_level)
-    elif petst['status']== u'b':
-        print u"收获鱼列表:"
-        map(print_fish, petst['fish_list'])
-        if petst['fish_list']!= [] or (not petst['rest_time']):  # status=u'b'
-            petst = req_safe(gameService, "harvestAMF", uid)
+def pet_dispath():
+    global petst
+    petst = req_safe(gameService, "getPetStatusAMF", uid, uid)
+    if petst:
+        if petst['status']== u'c':
+            print u"抓鱼剩余时间 %d 秒." % (petst['rest_time'] or 0)
+            time_line[now()+(petst['rest_time'] or 1000)] = ('HARVEST', ())
+        elif petst['status']== u'w':
             print u"派遣抓鱼."
+            # petst = gameService.dispatchAMF(uid, 2) # 雌雄双煞
+            # petst = gameService.dispatchAMF(uid, 3) # 杜姆之巢
             petst = req_safe(gameService, "dispatchAMF", uid, main_level)
-
+        elif petst['status']== u'b':
+            print u"收获鱼列表:"
+            map(print_fish, petst['fish_list'])
+            if petst['fish_list']!= [] or (not petst['rest_time']):  # status=u'b'
+                petst = req_safe(gameService, "harvestAMF", uid)
+                print u"派遣抓鱼."
+                time_line[now()+10*60*60] = ('HARVEST', ())
+            petst = req_safe(gameService, "dispatchAMF", uid, main_level)
+pet_dispath()
 
 # 塑料袋部分 ########################################
 print u"= 塑料袋 ="
-types = [2, 3, 5, 7, 11, 13, 17]
+types = [1, 2, 3, 5, 7, 11, 13]
 for t in types:
     print u"== %s ==" % family_dict.get(t, str(t))
     fishes = []
@@ -174,6 +222,7 @@ print u"= 遍历好友鱼缸 ="
 for f in friends.get('friend_list', []):    
     info = req_safe(membersService, "getUserInfoAMF", uid, f['id'])
     ftanks = req_safe(productsService, "getMyFishTankListAMF", uid, f['id'])
+    userinfo = req_safe(membersService, "getUserInfoAMF", uid, uid)
     petst = req_safe(gameService, "getPetStatusAMF", uid, f['id'])
     print '====',
     print_userinfo(info)    
@@ -185,25 +234,29 @@ for f in friends.get('friend_list', []):
             print_fish(res['fish'])
         else:
             print u"失败"
+    elif petst['status']== u'c':
+        print "[EVENT Registered]"
+        time_line[now()+petst['rest_time']] = ('STEAL', (f['id'],))
     req_fail(pubseaService, "getPubSeaInfoAMF", uid)
     userinfo = req_safe(membersService, "getUserInfoAMF", uid, uid)
     req_fail(productsService, "getMyFishTankListAMF", uid, uid)
     time.sleep(0.1)
     for i, tk in enumerate(ftanks):
-        if userinfo['user_info']['fish_food']< 2:
-            print u"-> 鱼食不足, 放弃遍历"
-            break
-        if userinfo['user_info']['remain_shock_times']< 1:
-            print u"-> 电鱼机会不足, 放弃遍历"
-            break
+        userinfo = req_safe(membersService, "getUserInfoAMF", uid, uid)
         if i% 2== 0:                    # dummy req
             req_fail(pubseaService, "getPubSeaInfoAMF", uid)
             req_fail(productsService, "getMyFishTankListAMF", uid, f['id'])
             time.sleep(0.3)
         print u"[%s]" % tk['name'], 
         tank = req_safe(productsService, "getMyFishTankObjectListAMF", uid, f['id'], tk['id'])
+        if userinfo['user_info']['fish_food']< 2:
+            print u"-> 鱼食不足"
+            continue
+        if userinfo['user_info']['remain_shock_times']< 1:
+            print u"-> 电鱼机会不足"
+            continue
         # 喂鱼
-        if f['id'] in []:# [844206]: # [590851]:
+        if f['id'] in [844206, 590851]:# [844206]: # [590851]:
             print worth_feed(tank),
             is_worth_feed, how_many_need = worth_feed(tank)
             if is_worth_feed:
@@ -219,6 +272,11 @@ for f in friends.get('friend_list', []):
         is_worth_shock, is_need_feed =  worth_shock(tank)
         if is_worth_shock:
             print u"电鱼:",
+            if tank['fish_tank']['is_shocked']:
+                res = req_safe(productsService, "shockAMF", uid, f['id'], tk['id'])
+                time_line[now()+ res.get('remain_time', 240)*60] = ('SHOCK', (f['id'], tk['id']))
+                print '[EVENT Registered]'
+                continue                # fixed
             if is_need_feed:
                 print u"(喂食2)",
                 req_fail(productsService, "feedAMF", uid, f['id'], tk['id'], 2)
@@ -226,9 +284,11 @@ for f in friends.get('friend_list', []):
             res = req_safe(productsService, "shockAMF", uid, f['id'], tk['id'])
             if res.get('get_shells', 0):
                 print u"获得", res['get_shells'], u"贝壳",
+                time_line[now()+ 4*60*60] = ('SHOCK', (f['id'], tk['id']))
             else:
                 print u"失败", res,
             userinfo = req_safe(membersService, "getUserInfoAMF", uid, uid) # update at last
+
         print
 
 # 鱼缸信息 ########################################
@@ -269,6 +329,7 @@ def catch_fish():
         if level['fish']:
             print u"此次可抓到:", fish_str( level['fish']['style'] )
         wait(40+ i*4, u"第%d关 ".encode(CODEC) % i)
+        do_time_line()                  # a good position
         js = gameService.catchFishCompleteLevelAMF(uid, lv, i%2== 1) # odd level you'll get fish
         if not js.get('js_script', False):
             print u"出错", js
@@ -293,8 +354,9 @@ req_fail(gameService, "getCatchFishUserInfoAMF", uid)
 
 if __name__ == '__main__':
     while True:
-        catch_fish()
+        # catch_fish()
+        do_time_line()
         req_fail(pubseaService, "getPubSeaInfoAMF", uid)
         req_fail(gameService, "getCatchFishUserInfoAMF", uid)
-        time.sleep(1.1)
+        time.sleep(10)
         req_fail(gameService, "getCatchFishUserInfoAMF", uid)
