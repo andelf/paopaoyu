@@ -12,3 +12,11 @@
 
 0.0.3:
 	* add timeline
+
+0.0.4:
+	* emergency bug fix, 11.30 update
+	* add new sevice, some function
+	* embed time_line into wait()
+	* dump all formula
+
+

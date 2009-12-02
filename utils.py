@@ -5,7 +5,7 @@
 #  Created     : Tue Nov 17 21:26:12 2009 by Feather.et.ELF 
 #  Copyright   : Feather Workshop (c) 2009 
 #  Description : PaoPaoYu util funcs 
-#  Time-stamp: <2009-11-28 14:23:04 andelf> 
+#  Time-stamp: <2009-12-02 17:04:41 andelf> 
 
 import urllib2
 import urllib
@@ -15,7 +15,7 @@ from progressbar import ProgressBar, Percentage, Bar, RotatingMarker, ETA
 import time
 
 
-__VERSION__ = '0.0.3'
+__VERSION__ = '0.0.4'
 
 pr = sys.stdout.write
 
@@ -24,7 +24,7 @@ family_dict = {2:u'团团族', 3:u'迅风族', 5:u'三刀族', 7:u'豆花族', 1
                1:u'X族'}
 
 def now():
-    return int(time.time())
+    return time.time()
 
 def fish_str(s):
     _, kind, color, lv = s.split('_')
@@ -37,6 +37,15 @@ def fish_str(s):
     k = kd.get(kind, kind)
     c = cd.get(color, color)
     return u"%s%s（%s级）" % (c, k, lv)
+
+def second_str(s):
+    minute = int(s/60)
+    hour = int(minute/60)
+    minute = minute % 60
+    second = int(s % 60)
+    return u"".join([u"%d小时" % hour if hour else "",
+                     u"%d分" % minute if minute else "",
+                     u"%d秒" % second if second else ""])
 
 def print_fish(f):
     # {'status': u'NM', 'is_highest_level': False, 'strength': 5, 'star': 2, 'name': u'\u7d2b\u7ef4\u7eb3\u65af\uff081\u7ea7\uff09', 'family': 7, 'level': 0, 'max_exp': 400, 'endurance': 9, 'max_life': 720, 'life': 720, 'hungry': 95.544444444444451, 'price': 0, 'agility': 9, 'style': u'f_wns_z_1', 'fishtank_id': 8382994, 'exp': 5.5694444444444446, 'can_be_potion': True, 'type': u'f', 'id': 164829662}
@@ -84,7 +93,7 @@ def worth_shock(td):
         bk += f.get('star', 0) * int( f.get('style', 'f_f7_l1_0').split('_')[-1] )
         if f.get('hungry', 0)< 1:
             need_feed = True
-    return (bk> 20, need_feed)
+    return (bk> 30, need_feed)
     # return (bk> 10, True) #  force need feed here / need_feed) 
         
 def worth_feed(td):
@@ -113,11 +122,18 @@ def worth_delete(f):
     return f['family']> 1 and f['hungry']== 0 and f['star']== 1 and \
            (f['style'].split('_')[2] in cd) and f['exp']== 0 and f['style'].split('_')[3]== '1'
 
+def worth_decompose(f):
+    cd = {'l':u'绿', 'l1':u'蓝', 'h':u'黄', 'h1':u'红'}
+    return f['family']> 1 and f['hungry']== 0 and f['star']<= 1 and \
+           (f['style'].split('_')[2] in cd) and f['exp']== 0 and f['style'].split('_')[3]== '1'
+
+
 def get_cookie(email, password):
     cookie_handler = urllib2.HTTPCookieProcessor()
     opener = urllib2.build_opener(cookie_handler)
     opener.addheaders = [
         ('User-agent', 'Mozilla/5.0 (X11; Linux mips; U; zh-cn) Gecko/20091010 BeiJu/%s' % (__VERSION__,) ),
+        ('Referer', 'http://apps.renren.com/paopaoyu/?origin=104'),
         ('x-flash-version', '11,0,32,18') ] # flash 11 better?
     print u"模拟页面登陆... 用户: %s." % email
     url = "http://passport.renren.com/PLogin.do" # 9.22 modify
@@ -134,11 +150,12 @@ def get_cookie(email, password):
         sys.exit(-1)
     url = url[0]
     url = url.replace('amp;', '') # .replace('?', '/?')
-    print u"获得转接Url", url
-    res = opener.open(url) # 
+    print u"获得转接Url"# , url
+    res = opener.open(url) #
+    data = res.read()
     cookiejar = cookie_handler.cookiejar
     cookies = cookiejar._cookies_for_request(urllib2.Request('http://xiaonei.paopaoyu.cn/some_fack_url'))
-    uid = re.findall(r'member_id=(\d+)&', res.read())
+    uid = re.findall(r'my_id=(\d+)&', data)
     uid = int(uid[0])
     return (''.join(["%s=%s;" % (ck.name, ck.value) for ck in cookies]), uid)
 
