@@ -19,4 +19,12 @@
 	* embed time_line into wait()
 	* dump all formula
 
+0.0.5:
+	* fix catch fish bug
+	* add random_order request
+	* level selection
+	* fix timeout bug
+	* add login ui & captcha ui & config ui
+	* avoid tmp gif file name clision
+
 

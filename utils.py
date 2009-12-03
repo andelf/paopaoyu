@@ -5,7 +5,7 @@
 #  Created     : Tue Nov 17 21:26:12 2009 by Feather.et.ELF 
 #  Copyright   : Feather Workshop (c) 2009 
 #  Description : PaoPaoYu util funcs 
-#  Time-stamp: <2009-12-02 17:04:41 andelf> 
+#  Time-stamp: <2009-12-03 20:13:22 andelf> 
 
 import urllib2
 import urllib
@@ -13,18 +13,112 @@ import re
 import sys
 from progressbar import ProgressBar, Percentage, Bar, RotatingMarker, ETA
 import time
+from Tkinter import Frame, PhotoImage, TOP, Entry, BOTTOM, Label, \
+     StringVar, Tk, X, RIGHT, LEFT, Button, IntVar, Radiobutton, W, Checkbutton, YES
 
-
-__VERSION__ = '0.0.4'
+__VERSION__ = '0.0.5'
 
 pr = sys.stdout.write
 
 # 使用素数
-family_dict = {2:u'团团族', 3:u'迅风族', 5:u'三刀族', 7:u'豆花族', 11:u'巨角族', 13:u'暴米族', 30030:u'全族', \
-               1:u'X族'}
+family_dict = {2:u'团团族', 3:u'迅风族', 5:u'三刀族', 7:u'豆花族',
+               11:u'巨角族', 13:u'暴米族', 30030:u'全族', 1:u'X族'}
 
 def now():
     return time.time()
+
+# code from www.java2s.com
+class Checckbar(Frame):
+    def __init__(self, parent=None, picks=[], side=LEFT, anchor=W, default=[]):
+        Frame.__init__(self, parent)
+        self.vars = []
+        for i,pick in enumerate(picks):
+            var = IntVar()
+            chk = Checkbutton(self, text=pick, variable=var)
+            chk.pack(side=side, anchor=anchor, expand=YES)
+            if i< len(default):
+                var.set(default[i])
+            self.vars.append(var)
+    def state(self):
+        return map((lambda var: bool(var.get())), self.vars)
+
+def ask_captcha(fname='./tmp.gif'):
+    root = Tk()
+    top = Frame(root)
+    top.pack()
+    image=PhotoImage(file=fname)
+    Label(top, image=image).pack(side=TOP)
+    var = StringVar()
+    widget = Entry(top, textvariable=var)
+    widget.focus_force()                # Put keyboard focus on Entry
+    def set_code(event=None):
+        captcha = var.get()
+        if len(captcha)!= 5:
+            var.set("")
+        else:
+            root.destroy()
+    widget.bind("<Key-Return>", set_code)
+    widget.pack(side=BOTTOM)
+    root.title(u"请杯具输入验证码!")
+    root.mainloop()
+    return var.get()
+    
+def ask_basic_info():
+    root = Tk()
+    # username
+    user_frame = Frame(root)
+    user_frame.pack()
+    Label(user_frame, text=u"用户名:").pack(side=LEFT, padx=5)
+    username = StringVar()
+    ue = Entry(user_frame, textvariable=username)
+    ue.pack(side=RIGHT, padx=5)
+    username.set("")
+    ue.focus_force()
+    user_frame.pack(expand=1, fill=X, pady=5,  padx=5)
+    # passworkd
+    pass_frame = Frame(root)
+    pass_frame.pack()
+    Label(pass_frame, text=u"　密码:").pack(side=LEFT, padx=5)
+    password = StringVar()
+    pe = Entry(pass_frame, textvariable=password, show="*")
+    pe.pack(side=RIGHT, padx=5)
+    def ask(_=None):
+        if len(username.get()) * len(password.get())== 0:
+            pass
+        else:
+            root.destroy()
+    pe.bind("<Key-Return>", ask)
+    password.set("password")
+    pass_frame.pack(expand=1, fill=X, pady=5,  padx=5)
+    # dumu / cixun
+    level_frame = Frame(root)
+    main_level = IntVar()
+    Radiobutton(level_frame, text=u"雌雄双煞", value=2, variable=main_level).pack(side=LEFT)
+    Radiobutton(level_frame, text=u"杜姆之巢", value=3, variable=main_level).pack(side=LEFT)
+    main_level.set(2)
+    level_frame.pack()
+    # minor
+    minor_level_frame = Frame(root)
+    minor_level = IntVar()
+    Label(minor_level_frame, text=u"子关选择:").pack(side=LEFT, padx=5)
+    Radiobutton(minor_level_frame, text=u"1", value=1, variable=minor_level).pack(side=LEFT)
+    Radiobutton(minor_level_frame, text=u"3", value=3, variable=minor_level).pack(side=LEFT)
+    Radiobutton(minor_level_frame, text=u"5", value=5, variable=minor_level).pack(side=LEFT)
+    minor_level.set(5)
+    minor_level_frame.pack()
+    # bool config
+    config_item = [u"访问好友", u"换鱼食(危险)", u"点化鱼(更危险)"]
+    default_var = [1, 0, 0]
+    config_bar = Checckbar(root, config_item, default=default_var)
+    config_bar.pack()
+    # login
+    Button(root, text=u"登录", command=ask).pack()
+    root.title(u"欢迎使用杯具渔民 %s" % __VERSION__)
+    root.mainloop()
+    return (username.get(), password.get(), main_level.get(), minor_level.get(),
+            config_bar.state())
+
+########################################
 
 def fish_str(s):
     _, kind, color, lv = s.split('_')
@@ -93,8 +187,8 @@ def worth_shock(td):
         bk += f.get('star', 0) * int( f.get('style', 'f_f7_l1_0').split('_')[-1] )
         if f.get('hungry', 0)< 1:
             need_feed = True
-    return (bk> 30, need_feed)
-    # return (bk> 10, True) #  force need feed here / need_feed) 
+    #return (bk> 35, need_feed)
+    return (bk> 30, True) #  force need feed here / need_feed) 
         
 def worth_feed(td):
     star = td['fish_tank'].get('star', 1)
@@ -166,11 +260,15 @@ def sleepbar(tm=50, txt=''):
         pbar.update(i+1)
     pbar.finish()
 
+
 def test():
     print fish_str("f_ly_l_1")
     print fish_str("f_dd_h1_1")
     print fish_str("f_f7_l1_1")
     print fish_str("f_dby_l_1")
+    #ask_captcha()
+    print ask_basic_info()
+
 
 if __name__ == '__main__':
     test()
