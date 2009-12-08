@@ -27,4 +27,12 @@
 	* add login ui & captcha ui & config ui
 	* avoid tmp gif file name clision
 
+0.0.6:
+	* new ui
+	* new options
+	* fix 12.7 update
+	* auto captcha recongnition
 
+TODP:
+	* fix chinese username bug
+	* fix kaixin.com bug

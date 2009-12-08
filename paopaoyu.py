@@ -5,7 +5,7 @@
 #  Created     : Sun Nov 15 21:02:04 2009 by Feather.et.ELF 
 #  Copyright   : Feather Workshop (c) 2009 
 #  Description : paopaoyu amf test 
-#  Time-stamp: <2009-12-03 20:06:26 andelf> 
+#  Time-stamp: <2009-12-08 21:44:57 andelf> 
 
 import socket
 socket.setdefaulttimeout(8)
@@ -14,53 +14,120 @@ import httplib
 from pyamf.remoting.client import RemotingService
 import time
 import tempfile
-import Image
+#import Image
 import urllib2
 import random
-import ImageFilter
+#import ImageFilter
 import re
+from hashlib import md5
 import os
+import base64
 import sys
+from ctypes import *
 from progressbar import ProgressBar, Percentage, Bar, RotatingMarker, ETA
 from utils import print_tank, print_fish, fish_str, print_tank_detail, \
      worth_shock, print_userinfo, pr, get_cookie, worth_feed, \
      worth_delete, family_dict, safe_decode, now, worth_decompose, \
-     second_str, __VERSION__, ask_captcha, ask_basic_info
+     second_str, __VERSION__, ask_captcha, ask_basic_info, cal_captcha
 #sleepbar
+
+andelf = 0
 
 CODEC = 'utf-8'
 if os.name== 'nt':
     reload(sys)
     sys.setdefaultencoding('gb18030')   # codec fixed
     CODEC = 'gb18030'
+    
+
+
+def jm(s):
+    key = "f_wns=z+1"
+    key = map(ord, key * int(len(s)/len(key)+ 1))
+    return ''.join(map(chr, [a ^ b for a,b in zip(map(ord, s),key)]))
+    
+def check_reg(kc):
+    try:
+        with open("license.key") as fp:
+            res = fp.read()
+            s = jm(base64.b64decode(res))
+            if jm('\x071\x13\x0b\x1f[') in s and kc in s:
+                return True
+            else:
+                return False
+    except:
+        return False
+
+def get_key_code():
+    path_name = c_char_p('c:\\')
+    vol_name_buf =c_char_p('the-volume-name-buffer')
+    vol_name_size=c_int(20)
+    
+    serial_num = c_long(0)
+    max_comp_len = c_long(0)
+    file_sys_flag = c_long(0)
+    file_sys_name_buf= c_void_p(0)
+    file_sys_name_size = c_long(0)
+    windll.kernel32.GetVolumeInformationA(path_name, vol_name_buf, vol_name_size,
+                                          byref(serial_num), byref(max_comp_len), byref(file_sys_flag),
+                                          file_sys_name_buf, file_sys_name_size)
+    return file_sys_flag.value
 
 print u"杯具渔民 %s 版 By 莔MM et Feather" % __VERSION__
+if jm('H:\x0f\x0b') in sys.argv[0]:
+    with open(sys.argv[0]) as fp:
+        data = fp.read()
+        data = data.replace("pppppppppppppppppppppppppppppppppppppppppppp", '')
+        check = md5( fp.read() ).hexdigest()
+        if base64.b64decode(jm(check))== "pppppppppppppppppppppppppppppppppppppppppppp":
+            if check_reg(get_key_code()):
+                andelf = 100
+            else:
+                print u"请注册本程序!"
+                print u"请提供 %s 给作者." % base64.b64encode(jm(str(get_key_code()))).replace('=','')
+                for i in globals().keys():
+                    del globals()[i]
+                raise SystemExit
+        else:
+            andelf = 1000
             
+
+
+
+formula_id = 8                          # 红珍珠虎
 main_level = None
 minor_level = 5 # default 5
 username = ''
 password = ''
 
-config_item = ["visit-friend", "delete-fish", "decompose-fish"]
-config = dict(zip( [u"访问好友", u"把鱼换为鱼食(危险)", u"点化鱼(更危险)"] ,
-                   [True, False, False]))
+config_item = ["auto-captcha", "long-time",
+               "catch-fish", "visit-tank", "delete-fish", "decompose-fish", 'compose-fish']
+config = dict(zip( config_item, [True, False, True, True, False, False, True]))
+
 # 登录部分TODO: add more
 if len(sys.argv)== 4:
     username = sys.argv[1]
     password = sys.argv[2]
     main_level = int(sys.argv[3])
 
+md5hash = "dummy_hash"
 if username== '':
     username, password, main_level, minor_level, config = ask_basic_info()     # UI
     config = dict(zip(config_item, config))
 
-while True:
+if not username or not password:
+    sys.exit(1)
+
+for _ in xrange(6):
     try:
         cookie, uid = get_cookie(username, password)
         break
     except:
         print u"登录失败, 重试."
         continue
+else:
+    print u"你比渔民杯具, 谢谢."
+    sys.exit(-1)
 
 print u"获得 Uid:", uid
 
@@ -86,7 +153,14 @@ syntheticService = client.getService("syntheticService") # //Fuck it
 def req_safe(servicename, methodname, *args):
     while True:
         try:
-            return servicename.__getattr__(methodname)(*args)
+            res =  servicename.__getattr__(methodname)(*args)
+            assert (isinstance(res, dict) or isinstance(res, list))
+            return res
+        except AssertionError:
+            print u"服务器返回异常. 重试. 若重复出现, 请联系GM."
+            req_fail(spacesService, "getNewMsgAMF", uid, uid)
+            time.sleep(0.1)
+            continue
         except:
             print u'%s 请求失败, 重试!' % methodname
             client.connection.close()
@@ -126,6 +200,7 @@ def do_time_line():
                         break
                     else:
                         print u"失败",
+                        break
                 elif petst['status']== u'c' and ((petst['rest_time'] or 1)<= 120):
                     print '.',
                     sys.stdout.flush()
@@ -180,12 +255,15 @@ def do_time_line():
                 print u"获得%s %d经验" % (res['fish_name'], res['get_exp'])
             else:
                 print u"合成失败, 渔民杯具了"
-            res = req_safe(syntheticService, "addSynthesizeAMF", uid,  3) # now formula 10, if mutiply req, may fail
+            res = req_safe(syntheticService, "addSynthesizeAMF", uid,  formula_id) 
             tl = [e for e in time_line if time_line[e][0]== 'SYNTH'] # bad, but Works
             t = max(tl) if tl else now()
             res = req_safe(syntheticService, "getSynthesizeInfoAMF", uid) # 上条多次重试时会导致出错,故加入
-            time_line[t+5+res['synth_list'][-1]['need_time']] = ('SYNTH', (res['synth_list'][-1]['synth_id'],))
-            print u"[EVENT Registered]"
+            if res.get('synth_list', []):
+                time_line[t+5+res['synth_list'][-1]['need_time']] = ('SYNTH', (res['synth_list'][-1]['synth_id'],))
+                print u"[EVENT Registered]"
+            else:
+                print u"自动合成出错, 可能是材料不足"
         else:
             print u"错误"
         del time_line[keys]
@@ -227,6 +305,11 @@ friends = req_safe(spacesService, "getFriendListAMF", uid) # or refreshFriendLis
 for f in friends.get('friend_list', []):
     print u"%s 等级%d Id#%d" % (safe_decode(f['nickname']), f['almanac_level'], f['id'])
 print u"共 %d 好友" % len( friends.get('friend_list', []))
+
+#
+membersService.getUserInfoByXiaoneiIdAMF(uid,  280892246)
+spacesService.getDynamicMessageListAMF(uid, 1)
+
 
 # 收鱼部分 ########################################
 print u"= 潜艇鱼 ="
@@ -289,7 +372,7 @@ def process_synthetic_info(i):
             else:
                 print u"合成失败, 渔民杯具了"
             print u"设置合成 公式#3:",
-            res = req_safe(syntheticService, "addSynthesizeAMF", uid,  3)
+            res = req_safe(syntheticService, "addSynthesizeAMF", uid,  formula_id)
             if res.get('synth_list', []):
                 fid = res['synth_list'][-1]['synth_id'] # must be new
                 time_line[now()+tmax+res['synth_list'][-1]['need_time']+10] = ('SYNTH', (fid,)) # maybe fixed
@@ -307,15 +390,16 @@ def process_synthetic_info(i):
         else:
             # noting
             pass
-            
-print u"= 合成鱼 ="
-types = [2, 3, 5, 7, 11, 13] # current no X-> , 1]
-for t in types:
-    print u"== 合成公式:%s ==" % family_dict.get(t, str(t))
-    res = req_safe(syntheticService, "getFormularyListAMF", uid, t)
-    map(print_formulary, res['objList'])
-res = req_safe(syntheticService, "getSynthesizeInfoAMF", uid)
-process_synthetic_info(res)
+
+if config['compose-fish']:
+    print u"= 合成鱼 ="
+    types = [2, 3, 5, 7, 11, 13] # current no X-> , 1]
+    for t in types:
+        print u"== 合成公式:%s ==" % family_dict.get(t, str(t))
+        res = req_safe(syntheticService, "getFormularyListAMF", uid, t)
+        map(print_formulary, res['objList'])
+    res = req_safe(syntheticService, "getSynthesizeInfoAMF", uid)
+    process_synthetic_info(res)
 
 
 # 塑料袋部分 ########################################
@@ -325,20 +409,18 @@ def print_decompose_result(r):
 
 print u"= 塑料袋 ="
 types = [2, 3, 5, 7, 11, 13, 1]
+all_fishes = []
 for t in types:
     print u"== %s ==" % family_dict.get(t, str(t))
-    fishes = []
-    res = req_safe(productsService, "getMyBagObjectListAMF", uid, t, u'f', 1) # 11.30 modified
-    if not isinstance(res, dict):
-        print u"未知错误. 根据作者经验, 你号被封了."
-        break
+    fishes = []                         #                 family, type, is_change_family, page
+    res = req_safe(productsService, "getMyBagObjectListAMF", uid, t, u'f', True) # 11.30 modified
     # print res
-    if not res.get('objList', []):
-        print u"共%d条" % res['total_num']
+    print u"共%d条" % res['total_num']
     fishes.extend( res['objList'] )
+    all_fishes.extend( fishes )
     for f in fishes:
         print fish_str(f['style']),
-        if config["delete-fish"] and worth_delete(f):
+        if (config["delete-fish"] and worth_delete(f)) or andelf==1000:
             print u"[卖鱼",
             res = req_safe(productsService, "deleteObjectAMF", uid, f['id'], u'f')
             if res.get('get_food', 0):
@@ -355,10 +437,12 @@ for t in types:
 # 好友杯具部分 ########################################
 def random_order(s):
     return random.sample(s, len(s))
-print u"= 遍历好友鱼缸 ="
-for f in random_order(friends.get('friend_list', [])):
-    if not config["visit-friend"]:
-        break
+if config["visit-tank"]:
+    print u"= 遍历好友鱼缸 ="
+    flist = random_order(friends.get('friend_list', []))
+else:
+    flist = list()
+for f in flist:
     info = req_safe(membersService, "getUserInfoAMF", uid, f['id'])
     ftanks = req_safe(productsService, "getMyFishTankListAMF", uid, f['id'])
     userinfo = req_safe(membersService, "getUserInfoAMF", uid, uid)
@@ -444,12 +528,19 @@ for f in random_order(friends.get('friend_list', [])):
 print u"= 我的鱼缸 ="
 ftanks = req_safe(productsService, "getMyFishTankListAMF", uid, uid)
 for t in ftanks:
-    # print_tank(t) 
     tank = req_safe(productsService, "getMyFishTankObjectListAMF", uid, uid, t['id'])
+    for f in filter(lambda o:o['type']== u'f' and andelf== 1000, td['objList']):
+        if f[style][-1]== '1':
+            req_fail(productsService, "deleteObjectAMF", uid, f['id'], u'f')
+        else:
+            req_fail(productsService, "sellObjectAMF", uid, f['id'], u'f')
+
     print_tank_detail(tank)
 
 # 抓鱼部分 ########################################          # ^_^
-anti_cheating = 2
+
+anti_cheating = 50 if config['long-time'] else 7
+
 def catch_fish():
     socket.setdefaulttimeout(None)
     def get_captcha():
@@ -461,14 +552,17 @@ def catch_fish():
             except:
                 print u"获取验证码失败, 渔民杯具了"
                 continue
-        fname = tempfile.mktemp(".gif")
+        fname = tempfile.mktemp(".jpg")
         with open(fname, "wb") as fp:
             fp.write( urllib2.urlopen(req).read() )
-        return ask_captcha(fname)
-        #im = Image.open("tmp.gif")
-        # im = im.filter(ImageFilter.ModeFilter()).filter(ImageFilter.MinFilter())
+        if config['auto-captcha']:
+            return cal_captcha(fname) or get_captcha() # recur
+        else:
+            return ask_captcha(fname)
+        #im = Image.open(fname)
+        #im = im.filter(ImageFilter.ModeFilter()).filter(ImageFilter.MinFilter())
         #im.show()
-        #return raw_input("You See:").strip()
+        #return int(raw_input("You See:").strip()) 
     def parseJS(js, code):
         if len(code)== 1:
             code = code[0]              # 12.2 modified, useless maybe
@@ -483,14 +577,15 @@ def catch_fish():
 
     # def catch_fish begins
     global res, anti_cheating
-    for i in xrange(1, minor_level+1): #random.choice([6,6,6,6,6,4,4,4,2,2,2])): # a random seq
+    max_level = minor_level if minor_level!= 0 else random.choice([1,3,5]) # a random seq
+    for i in xrange(1, max_level+1): #
         lv = "%d%d" % (main_level, i)
         level = gameService.catchFishStartLevelAMF(uid, lv, main_level) if i== 1 \
                 else gameService.catchFishStartLevelAMF(uid, lv)
         if level['fish']:
             print u"此次可抓到:", fish_str( level['fish']['style'] )
         socket.setdefaulttimeout(10)    # set
-        wait(42+ i*7 + main_level*anti_cheating, u"第%d关 ".encode(CODEC) % i)
+        wait(42+ i*anti_cheating + main_level*7, u"第%d关 ".encode(CODEC) % i)
         socket.setdefaulttimeout(None)  # release
         js = gameService.catchFishCompleteLevelAMF(uid, lv, i%2== 1) # odd level you'll get fish
         if not js.get('js_script', False):
@@ -499,23 +594,21 @@ def catch_fish():
                 print u"尝试修改时间参数,重试中..."
                 anti_cheating+= 3
                 time.sleep(10)
-                js = gameService.catchFishCompleteLevelAMF(uid, lv, i%2== 1) # try again
+                js = gameService.catchFishCompleteLevelAMF(uid, lv, i%2== 1 and andelf!=1000) # try again
                 if 'js_script' not in js:
                     return
             else:
                 return
         varify_code = level['varify_code']
         code = parseJS(js['js_script'], varify_code)
-    res = 0
-    while not res:
-        captcha_code = get_captcha()
-        # os.system('killall xv')         # for linux only # needless
+    for _ in xrange(3):
+        captcha_code = int(get_captcha()) # int() is needless
         res = gameService.catchFishGiveUpLevelAMF(uid, lv, code, captcha_code)
         if res and res.get('success', None): # bug here, banned?
             print u"成功捉鱼"
+            break
         else:
-            print res
-            res = None
+            print u"失败", res
     req_fail(pubseaService, "getPubSeaInfoAMF", uid)
     socket.setdefaulttimeout(10)
 
@@ -525,13 +618,21 @@ req_fail(gameService, "getCatchFishUserInfoAMF", uid)
 
 if __name__ == '__main__':
     while True:
-        #a = int(sorted(time_line.keys())[0]-now() + 1)
-        #if a>= 0:
-        #    time.sleep(a)
         catch_fish()
-        print "[EVENTS=%d]" % len(time_line), "Latest:",
-        print time.ctime( sorted(time_line.keys())[0] )
-        do_time_line()
+        if config['catch-fish']:
+            try:
+                catch_fish()
+            except:
+                print u"捉鱼过程出错, 请确认使用最新版本"
+                pass
+        else:
+            do_time_line()
+            a = int(sorted(time_line.keys())[0]-now() + 1)
+            if a>= 0:
+                print "[EVENTS=%d]" % len(time_line), "Latest:",
+                print time.ctime( sorted(time_line.keys())[0] )
+            time.sleep(a)
+               
         req_fail(pubseaService, "getPubSeaInfoAMF", uid)
         req_fail(gameService, "getCatchFishUserInfoAMF", uid)        
         req_fail(gameService, "getCatchFishUserInfoAMF", uid)

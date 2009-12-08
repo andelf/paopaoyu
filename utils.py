@@ -5,7 +5,7 @@
 #  Created     : Tue Nov 17 21:26:12 2009 by Feather.et.ELF 
 #  Copyright   : Feather Workshop (c) 2009 
 #  Description : PaoPaoYu util funcs 
-#  Time-stamp: <2009-12-03 20:13:22 andelf> 
+#  Time-stamp: <2009-12-08 21:15:10 andelf> 
 
 import urllib2
 import urllib
@@ -13,14 +13,15 @@ import re
 import sys
 from progressbar import ProgressBar, Percentage, Bar, RotatingMarker, ETA
 import time
-from Tkinter import Frame, PhotoImage, TOP, Entry, BOTTOM, Label, \
+from Tkinter import Frame, TOP, Entry, BOTTOM, Label, \
      StringVar, Tk, X, RIGHT, LEFT, Button, IntVar, Radiobutton, W, Checkbutton, YES
+from ImageTk import PhotoImage
+import Image
 
-__VERSION__ = '0.0.5'
+__VERSION__ = '0.0.6'
 
 pr = sys.stdout.write
 
-# 使用素数
 family_dict = {2:u'团团族', 3:u'迅风族', 5:u'三刀族', 7:u'豆花族',
                11:u'巨角族', 13:u'暴米族', 30030:u'全族', 1:u'X族'}
 
@@ -42,7 +43,64 @@ class Checckbar(Frame):
     def state(self):
         return map((lambda var: bool(var.get())), self.vars)
 
-def ask_captcha(fname='./tmp.gif'):
+
+# 12.7 update
+val = 0                                 # use as global
+def cal_captcha(fname='./tmp.jpg'):
+    global val
+    im = Image.open(fname)
+    def crop_box(pos):
+        x, y = pos
+        return im.crop((x, y, x+60, y+60))
+    def like_fish(im): # fuck it
+        result = []
+        for x in range(37, 41) + range(18,22):
+            for y in range(37,41):
+                result.append( reduce(lambda x,y:x*y, im.getpixel((x,y)), 1) )
+        return max(result) - min(result)
+    def crop_test(im):
+        result = []
+        for y in xrange(3):
+            for x in xrange(4):
+                pos = (x*65, y*65)
+                sub_im = crop_box(pos)
+                match_val = like_fish(sub_im)
+                if match_val< 13000000:
+                    result.append( (match_val,  x+4*y+1) )
+        if result:
+            result.sort()
+            return result[0][1]
+        return 0
+    val = crop_test(im)
+    if val!= 0:
+        print u"尝试自动识别成功. 位置%d发现匹配水草." % val
+        return val
+    else:
+        print u"自动识别失败."
+        return 5
+    # return ask_captcha(fname)
+
+def ask_captcha(fname='./tmp.jpg'):
+    def on_click(event):
+        global val
+        if event.num== 1:
+            cx, cy = (event.x, event.y)
+            for y in xrange(3):
+                for x in xrange(4):
+                    if ((x*65+30-cx)**2+(y*65+30-cy)**2)**0.5< 25:
+                        val = x+4*y+1
+                        root.destroy()
+    root = Tk()
+    image = PhotoImage(file=fname)
+    lbl = Label(root, image=image)
+    lbl.bind("<Button-1>", on_click)
+    lbl.pack()
+    root.title(u"单击水草")
+    root.mainloop()
+    return val
+
+# useless
+def ask_captcha_old(fname='./tmp.jpg'):
     root = Tk()
     top = Frame(root)
     top.pack()
@@ -53,20 +111,21 @@ def ask_captcha(fname='./tmp.gif'):
     widget.focus_force()                # Put keyboard focus on Entry
     def set_code(event=None):
         captcha = var.get()
-        if len(captcha)!= 5:
+        if len(captcha)>= 2:
             var.set("")
         else:
             root.destroy()
     widget.bind("<Key-Return>", set_code)
     widget.pack(side=BOTTOM)
-    root.title(u"请杯具输入验证码!")
+    root.title(u"验证码:")
     root.mainloop()
     return var.get()
     
 def ask_basic_info():
     root = Tk()
     # username
-    user_frame = Frame(root)
+    left_frame = Frame(root)
+    user_frame = Frame(left_frame)
     user_frame.pack()
     Label(user_frame, text=u"用户名:").pack(side=LEFT, padx=5)
     username = StringVar()
@@ -76,7 +135,7 @@ def ask_basic_info():
     ue.focus_force()
     user_frame.pack(expand=1, fill=X, pady=5,  padx=5)
     # passworkd
-    pass_frame = Frame(root)
+    pass_frame = Frame(left_frame)
     pass_frame.pack()
     Label(pass_frame, text=u"　密码:").pack(side=LEFT, padx=5)
     password = StringVar()
@@ -91,32 +150,40 @@ def ask_basic_info():
     password.set("password")
     pass_frame.pack(expand=1, fill=X, pady=5,  padx=5)
     # dumu / cixun
-    level_frame = Frame(root)
+    level_frame = Frame(left_frame)
     main_level = IntVar()
     Radiobutton(level_frame, text=u"雌雄双煞", value=2, variable=main_level).pack(side=LEFT)
     Radiobutton(level_frame, text=u"杜姆之巢", value=3, variable=main_level).pack(side=LEFT)
     main_level.set(2)
     level_frame.pack()
     # minor
-    minor_level_frame = Frame(root)
+    minor_level_frame = Frame(left_frame)
     minor_level = IntVar()
     Label(minor_level_frame, text=u"子关选择:").pack(side=LEFT, padx=5)
     Radiobutton(minor_level_frame, text=u"1", value=1, variable=minor_level).pack(side=LEFT)
     Radiobutton(minor_level_frame, text=u"3", value=3, variable=minor_level).pack(side=LEFT)
     Radiobutton(minor_level_frame, text=u"5", value=5, variable=minor_level).pack(side=LEFT)
+    Radiobutton(minor_level_frame, text=u"随机", value=0, variable=minor_level).pack(side=LEFT)
     minor_level.set(5)
     minor_level_frame.pack()
+    # misc
+    misc_item = [u"使用自动验证码识别", u"提高时间参数(防封号)"]
+    default_var = [1, 0]
+    misc_bar = Checckbar(left_frame, misc_item, default=default_var, side=TOP)
+    misc_bar.pack()
+    #
+    left_frame.pack(side=LEFT)
     # bool config
-    config_item = [u"访问好友", u"换鱼食(危险)", u"点化鱼(更危险)"]
-    default_var = [1, 0, 0]
-    config_bar = Checckbar(root, config_item, default=default_var)
-    config_bar.pack()
+    config_item = [u"捉鱼", u"访问鱼缸", u"换鱼食", u"点化鱼", u"合成鱼"]
+    default_var = [1, 1, 0, 0, 1]
+    config_bar = Checckbar(root, config_item, default=default_var, side=TOP)
+    config_bar.pack(side=LEFT)
     # login
-    Button(root, text=u"登录", command=ask).pack()
+    Button(root, text=u"登录", command=ask).pack(side=LEFT)
     root.title(u"欢迎使用杯具渔民 %s" % __VERSION__)
     root.mainloop()
     return (username.get(), password.get(), main_level.get(), minor_level.get(),
-            config_bar.state())
+            misc_bar.state() + config_bar.state())
 
 ########################################
 
@@ -187,8 +254,8 @@ def worth_shock(td):
         bk += f.get('star', 0) * int( f.get('style', 'f_f7_l1_0').split('_')[-1] )
         if f.get('hungry', 0)< 1:
             need_feed = True
-    #return (bk> 35, need_feed)
-    return (bk> 30, True) #  force need feed here / need_feed) 
+    return (bk> 35, need_feed)
+    #return (bk> 30, True) #  force need feed here / need_feed) 
         
 def worth_feed(td):
     star = td['fish_tank'].get('star', 1)
@@ -238,6 +305,8 @@ def get_cookie(email, password):
     dataEncoded = urllib.urlencode(data)
     req = urllib2.Request(url, data = dataEncoded)
     res = opener.open(req)
+    #print res.read()
+    #return                              # test
     url = re.findall(r'id="iframe_canvas" src="([^"]+)"', res.read())
     if not url:
         print u"用户名/密码错误!"
@@ -260,14 +329,13 @@ def sleepbar(tm=50, txt=''):
         pbar.update(i+1)
     pbar.finish()
 
-
 def test():
     print fish_str("f_ly_l_1")
     print fish_str("f_dd_h1_1")
     print fish_str("f_f7_l1_1")
     print fish_str("f_dby_l_1")
     #ask_captcha()
-    print ask_basic_info()
+    #print ask_basic_info()
 
 
 if __name__ == '__main__':
