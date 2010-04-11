@@ -1,11 +1,9 @@
 #!/usr/bin/env python
 # -*- coding:utf-8 -*-
-#  FileName    : utils.py 
-#  Author      : Feather.et.ELF <andelf@gmail.com> 
-#  Created     : Tue Nov 17 21:26:12 2009 by Feather.et.ELF 
-#  Copyright   : Feather Workshop (c) 2009 
+#  FileName    : utils.py  
+#  Created     : Tue Nov 17 21:26:12 2009  
 #  Description : PaoPaoYu util funcs 
-#  Time-stamp: <2009-12-08 21:15:10 andelf> 
+#  Time-stamp: <2009-12-08 21:15:10 > 
 
 import urllib2
 import urllib
@@ -14,16 +12,16 @@ import sys
 from progressbar import ProgressBar, Percentage, Bar, RotatingMarker, ETA
 import time
 from Tkinter import Frame, TOP, Entry, BOTTOM, Label, \
-     StringVar, Tk, X, RIGHT, LEFT, Button, IntVar, Radiobutton, W, Checkbutton, YES
+     StringVar, Tk, X, RIGHT, LEFT, Button, IntVar, Radiobutton, W, Checkbutton, YES, Text
 from ImageTk import PhotoImage
 import Image
 
-__VERSION__ = '0.0.6'
+__VERSION__ = '0.0.7'
 
 pr = sys.stdout.write
 
 family_dict = {2:u'团团族', 3:u'迅风族', 5:u'三刀族', 7:u'豆花族',
-               11:u'巨角族', 13:u'暴米族', 30030:u'全族', 1:u'X族'}
+               11:u'巨角族', 13:u'暴米族', 30030:u'全族', 1:u'X族'}  # default_30030
 
 def now():
     return time.time()
@@ -42,8 +40,7 @@ class Checckbar(Frame):
             self.vars.append(var)
     def state(self):
         return map((lambda var: bool(var.get())), self.vars)
-
-
+    
 # 12.7 update
 val = 0                                 # use as global
 def cal_captcha(fname='./tmp.jpg'):
@@ -95,7 +92,7 @@ def ask_captcha(fname='./tmp.jpg'):
     lbl = Label(root, image=image)
     lbl.bind("<Button-1>", on_click)
     lbl.pack()
-    root.title(u"单击水草")
+    root.title(u"点击头向下的鱼")
     root.mainloop()
     return val
 
@@ -167,8 +164,8 @@ def ask_basic_info():
     minor_level.set(5)
     minor_level_frame.pack()
     # misc
-    misc_item = [u"使用自动验证码识别", u"提高时间参数(防封号)"]
-    default_var = [1, 0]
+    misc_item = [u"使用自动验证码识别(不可用)", u"提高时间参数(防封号)", u"只抓丽丽牛牛阿迪龙"]
+    default_var = [0, 0, 0]
     misc_bar = Checckbar(left_frame, misc_item, default=default_var, side=TOP)
     misc_bar.pack()
     #
@@ -227,16 +224,18 @@ def safe_decode(s):
     return s.encode('gbk', 'ignore').decode('gbk')
 
 def print_userinfo(userinfo):
-    print u"昵称 %s, Id#%d, 等级 %d, 剩余鱼食 %d, 电鱼机会 %d, 贝壳 %d, 珍珠 %d, 经验 %d/%d" % \
-          (safe_decode(userinfo['user_info']['nickname']),
-           userinfo['user_info']['id'],
+    # print u"昵称 %s, Id#%d, 等级 %d, 剩余鱼食 %d, 电鱼机会 %d, 贝壳 %d, 珍珠 %d, 经验 %d/%d" % \
+    print u"昵称 %s, Id#%d, 等级 %d, 窝号 %s" % \
+          (safe_decode(userinfo['user_info']['nickname']),  # 
+           userinfo['user_info']['id'],  #
            userinfo['user_info']['almanac_level'],
-           userinfo['user_info']['fish_food'],
-           userinfo['user_info']['remain_shock_times'],
-           userinfo['user_info']['shells'],
-           userinfo['user_info']['pearls'],
-           userinfo['user_info']['exp'],
-           userinfo['user_info']['next_exp'],
+           userinfo['user_info']['xiaonei_id'],   # a unicode.  
+           # userinfo['user_info']['fish_food'],
+           # userinfo['user_info']['remain_shock_times'],
+           # userinfo['user_info']['shells'],
+           # userinfo['user_info']['pearls'],
+           # userinfo['user_info']['exp'],
+           # userinfo['user_info']['next_exp'],
            )
 
 def print_tank_detail(td):
@@ -254,7 +253,7 @@ def worth_shock(td):
         bk += f.get('star', 0) * int( f.get('style', 'f_f7_l1_0').split('_')[-1] )
         if f.get('hungry', 0)< 1:
             need_feed = True
-    return (bk> 35, need_feed)
+    return (bk> 30, need_feed)
     #return (bk> 30, True) #  force need feed here / need_feed) 
         
 def worth_feed(td):
@@ -293,9 +292,11 @@ def get_cookie(email, password):
     cookie_handler = urllib2.HTTPCookieProcessor()
     opener = urllib2.build_opener(cookie_handler)
     opener.addheaders = [
-        ('User-agent', 'Mozilla/5.0 (X11; Linux mips; U; zh-cn) Gecko/20091010 BeiJu/%s' % (__VERSION__,) ),
+        ('User-agent', 'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US) AppleWebKit/532.5' + \
+            '(KHTML, like Gecko) Chrome/4.0.256.0 Safari/532.5 MM/%s' % (__VERSION__,) ),
+        #('User-agent', 'Mozilla/5.0 (X11; Linux mips; U; zh-cn) Gecko/20090229 /%s' % (__VERSION__,) ),
         ('Referer', 'http://apps.renren.com/paopaoyu/?origin=104'),
-        ('x-flash-version', '11,0,32,18') ] # flash 11 better?
+        ('x-flash-version', '10,0,32,18') ] # flash 11 better?
     print u"模拟页面登陆... 用户: %s." % email
     url = "http://passport.renren.com/PLogin.do" # 9.22 modify
     data = {'email' : email,
@@ -323,7 +324,8 @@ def get_cookie(email, password):
     return (''.join(["%s=%s;" % (ck.name, ck.value) for ck in cookies]), uid)
 
 def sleepbar(tm=50, txt=''):
-    pbar = ProgressBar(widgets=[txt, Percentage(), Bar(marker=RotatingMarker(), left='[', right=']'), ' ', ETA()], maxval=300).start()
+    pbar = ProgressBar(widgets=[txt, Percentage(), Bar(marker=RotatingMarker(),  \
+            left='[', right=']'), ' ', ETA()], maxval=300).start()
     for i in range(300):
         time.sleep(tm/300.0)
         pbar.update(i+1)
